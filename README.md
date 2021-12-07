@@ -4,7 +4,7 @@
 
 expect only a few solutions, as this is not a particularly fun/rewarding thing to do :P (especially as kaze kinda sucks rn when it comes to trivial modules)
 
-# setup
+## setup
 
 I'm using some "unreleased" stuff on kaze's master branch, so it's expected that that's checked out in a `kaze` dir alongside this repo, eg:
 
