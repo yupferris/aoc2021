@@ -20,6 +20,7 @@ struct Sweeper<'a> {
     pub m: &'a Module<'a>,
 
     pub depth: &'a Input<'a>,
+    pub depth_valid: &'a Input<'a>,
 
     pub larger_measurements: &'a Output<'a>,
     pub larger_measurements_valid: &'a Output<'a>,
@@ -59,6 +60,7 @@ impl<'a> Sweeper<'a> {
             m,
 
             depth,
+            depth_valid,
 
             larger_measurements: m.output("larger_measurements", larger_measurements_reg),
             larger_measurements_valid: m.output("larger_measurements_valid", state_valid),
