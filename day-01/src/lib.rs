@@ -7,7 +7,7 @@ mod tests {
     use modules::*;
 
     #[test]
-    fn problem_1() {
+    fn part_1() {
         let input = include_str!("input.txt");
 
         let mut m = Sweeper::new();
