@@ -14,7 +14,7 @@ aoc2021
 kaze
 ```
 
-## licensse
+## license
 
 Licensed under either of
 
