@@ -38,7 +38,6 @@ impl<'a> Sweeper<'a> {
         state_valid.drive_next(state_valid | depth_valid);
 
         let prev_depth = m.reg("prev_depth", depth_bit_width);
-        prev_depth.default_value(0u32);
         prev_depth.drive_next(if_(depth_valid, {
             depth
         }).else_({
