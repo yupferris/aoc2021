@@ -6,15 +6,15 @@ mod tests {
 
     use modules::*;
 
+    const INPUT: &'static str = include_str!("input.txt");
+
     #[test]
     fn part_1() {
-        let input = include_str!("input.txt");
-
         let mut m = Sweeper::new();
 
         m.reset();
 
-        for line in input.lines() {
+        for line in INPUT.lines() {
             let depth = str::parse::<u32>(line).expect("Couldn't parse depth");
             m.depth = depth;
             m.depth_valid = true;
