@@ -12,10 +12,108 @@ fn main() -> Result<()> {
 
     let c = Context::new();
 
+    sim::generate(Parser::new("number_line_parser", 32, &c).m, sim::GenerationOptions {
+        tracing: true,
+        ..Default::default()
+    }, &mut file)?;
     sim::generate(Sweeper::new("sweeper", 32, &c).m, sim::GenerationOptions::default(), &mut file)?;
     sim::generate(Slider::new("slider", 32, &c).m, sim::GenerationOptions::default(), &mut file)?;
 
     Ok(())
+}
+
+#[allow(dead_code)]
+struct Parser<'a> {
+    pub m: &'a Module<'a>,
+
+    pub ingress_ready: &'a Output<'a>,
+    pub ingress_valid: &'a Input<'a>,
+    pub ingress_data: &'a Input<'a>,
+
+    pub egress_ready: &'a Input<'a>,
+    pub egress_valid: &'a Output<'a>,
+    pub egress_data: &'a Output<'a>,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(instance_name: impl Into<String>, number_bit_width: u32, p: &'a impl ModuleParent<'a>) -> Parser<'a> {
+        let m = p.module(instance_name, "Parser");
+
+        let state_bit_width = 2;
+        let state_parsing = 0u32;
+        let state_output_eof = 1u32;
+        let state_finished = 2u32;
+        let state = m.reg("state", state_bit_width);
+        state.default_value(state_parsing);
+
+        let egress_valid_reg = m.reg("egress_valid_reg", 1);
+        egress_valid_reg.default_value(false);
+
+        let egress_ready = m.input("egress_ready", 1);
+        let backpressure = egress_valid_reg & !egress_ready;
+
+        let ingress_ready = state.eq(m.lit(state_parsing, state_bit_width)) & !backpressure;
+
+        let ingress_valid = m.input("ingress_valid", 1);
+        let ingress_data = m.input("ingress_data", 8);
+
+        let ingress_handshake = ingress_ready & ingress_valid;
+
+        let ingress_eof = ingress_handshake & ingress_data.eq(m.lit(0u8, 8)); // TODO: Proper constant
+        let ingress_eol = ingress_handshake & ingress_data.eq(m.lit('\n' as u8, 8));
+
+        let acc = m.reg("acc", number_bit_width);
+        acc.default_value(0u32);
+        acc.drive_next(if_(ingress_handshake, {
+            if_(ingress_eol, {
+                m.lit(0u32, number_bit_width)
+            }).else_({
+                let digit = ingress_data - m.lit('0' as u8, 8);
+                (acc * m.lit(10u32, number_bit_width)).bits(number_bit_width - 1, 0) + m.lit(0u32, number_bit_width - 8).concat(digit)
+            })
+        }).else_({
+            acc
+        }));
+
+        state.drive_next(if_(state.eq(m.lit(state_parsing, state_bit_width)) & ingress_eof, {
+            m.lit(state_output_eof, state_bit_width)
+        }).else_if(state.eq(m.lit(state_output_eof, state_bit_width)) & egress_ready, {
+            m.lit(state_finished, state_bit_width)
+        }).else_({
+            state
+        }));
+
+        egress_valid_reg.drive_next(if_(ingress_eof | ingress_eol, {
+            m.lit(true, 1)
+        }).else_if(egress_valid_reg & egress_ready, {
+            m.lit(false, 1)
+        }).else_({
+            egress_valid_reg
+        }));
+        let egress_data_reg = m.reg("egress_data_reg", number_bit_width);
+        egress_data_reg.drive_next(if_(ingress_eof, {
+            m.lit(true, 1).repeat(number_bit_width) // TODO: Proper constant
+        }).else_if(ingress_eol, {
+            acc
+        }).else_({
+            egress_data_reg
+        }));
+
+        let egress_valid = m.output("egress_valid", egress_valid_reg);
+        let egress_data = m.output("egress_data", egress_data_reg);
+
+        Parser {
+            m,
+
+            ingress_ready: m.output("ingress_ready", ingress_ready),
+            ingress_valid,
+            ingress_data,
+
+            egress_ready,
+            egress_valid,
+            egress_data,
+        }
+    }
 }
 
 #[allow(dead_code)]
